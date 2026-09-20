@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Rhino Tool Check</title>
+<meta name="theme-color" content="#3F3F40">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --yellow:#FDDD00;
+  --dark:#3F3F40;
+  --dark2:#3F3F40; /* swap for #2A2A2A if you confirm that's the hub's exact value */
+  --grey:#9EA0A3;
+  --air:#D6D6D6;
+  --clay:#CC645C;
+  --blue:#78A1BB;
+  --bg:#F4F3F0;
+  --ok:#4CAF6D;
+  --amber:#E0A400;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--dark);
+  font-family:'Barlow',sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.label,.nav-item,.tab-btn,button,.hdr-btn{font-family:'Barlow Condensed',sans-serif}
+a{color:inherit}
+button{font-family:inherit;cursor:pointer}
+
+#app{display:flex; flex-direction:column; height:100vh; overflow:hidden}
+
+/* ---- Header (Shell A) ---- */
+.res-header{background:var(--dark2); flex-shrink:0; color:#fff}
+.accent-bar{height:4px; background:var(--yellow)}
+.hdr-inner{display:flex; align-items:center; justify-content:space-between; padding:10px 16px}
+.hdr-left{display:flex; align-items:center; gap:14px}
+.hamburger{display:none; background:none; border:none; color:#fff; font-size:20px; padding:4px 8px}
+.brand h1{margin:0; font-size:19px; font-weight:800; letter-spacing:.04em; text-transform:uppercase}
+.brand h1 span{color:var(--yellow)}
+.brand .sub{font-size:9.5px; color:var(--grey); text-transform:uppercase; letter-spacing:.14em; margin-top:1px}
+.header-right{display:flex; align-items:center; gap:10px}
+.hdr-btn{padding:5px 12px; font-size:11px; border-radius:5px; cursor:pointer; border:1px solid rgba(255,255,255,0.18); background:transparent; color:rgba(255,255,255,0.7); font-weight:700; letter-spacing:0.07em; text-transform:uppercase; display:inline-flex; align-items:center; gap:5px; transition:all 0.15s; text-decoration:none}
+.hdr-btn:hover{border-color:var(--yellow); color:var(--yellow)}
+.hdr-date{font-size:10px; color:var(--grey); text-align:right; line-height:1.4; text-transform:uppercase; letter-spacing:.06em}
+.conn-dot{width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:5px}
+.conn-dot.ok{background:var(--ok)} .conn-dot.bad{background:var(--clay)}
+
+/* ---- App body ---- */
+.app-body{flex:1; display:flex; min-height:0}
+.sidebar{width:210px; flex-shrink:0; background:var(--dark); color:#fff; display:flex; flex-direction:column; overflow-y:auto}
+.nav-section{padding:12px 0 4px 0}
+.nav-label{font-size:9.5px; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:.14em; padding:4px 14px; font-weight:700}
+.nav-item{display:flex; align-items:center; gap:9px; padding:9px 14px; font-size:13px; color:rgba(255,255,255,0.55); cursor:pointer; border:none; background:none; width:100%; text-align:left; font-family:'Barlow',sans-serif; border-left:3px solid transparent; transition:all 0.12s}
+.nav-item:hover{color:#fff; background:rgba(255,255,255,0.04)}
+.nav-item.active{color:var(--yellow); background:rgba(253,221,0,0.07); border-left-color:var(--yellow); font-weight:600}
+.nav-badge{margin-left:auto; background:var(--clay); color:#fff; font-size:9.5px; font-weight:800; padding:1px 6px; border-radius:10px}
+.sidebar-footer{margin-top:auto; padding:12px 14px; border-top:1px solid rgba(255,255,255,0.08)}
+.sidebar-footer p{font-size:8px; color:rgba(255,255,255,0.25); letter-spacing:0.1em; text-transform:uppercase; margin:0 0 4px 0}
+.sidebar-footer .credit{font-size:8px; color:rgba(255,255,255,0.18); margin:0}
+
+.main{flex:1; overflow-y:auto; min-width:0}
+.page{padding:20px 24px 60px 24px; max-width:1100px}
+.topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px}
+.topbar h2{margin:0; font-size:22px; font-weight:800; text-transform:uppercase; letter-spacing:.03em}
+.topbar-sub{font-size:12px; color:var(--grey); margin-top:2px}
+.topbar-actions{display:flex; gap:8px; flex-wrap:wrap}
+
+.btn{border:none; border-radius:7px; padding:9px 16px; font-size:12.5px; font-weight:700; letter-spacing:.03em; display:inline-flex; align-items:center; gap:6px}
+.btn-primary{background:var(--yellow); color:var(--dark)}
+.btn-primary:hover{filter:brightness(0.96)}
+.btn-dark{background:var(--dark); color:#fff}
+.btn-outline{background:#fff; color:var(--dark); border:1.5px solid var(--air)}
+.btn-outline:hover{border-color:var(--dark)}
+.btn-danger{background:#fff; color:var(--clay); border:1.5px solid var(--clay)}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+.btn-sm{padding:5px 10px; font-size:11px; border-radius:6px}
+
+/* ---- Cards / grids ---- */
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:12px}
+.card{background:#fff; border:1px solid var(--air); border-radius:10px; padding:14px}
+.team-card{cursor:pointer; transition:box-shadow .12s, border-color .12s}
+.team-card:hover{border-color:var(--dark); box-shadow:0 2px 10px rgba(0,0,0,0.06)}
+.team-card .row1{display:flex; justify-content:space-between; align-items:flex-start; gap:8px}
+.team-card .name{font-weight:700; font-size:15px}
+.team-card .leader{font-size:11.5px; color:var(--grey); margin-top:2px}
+.team-card .meta{font-size:11px; color:var(--grey); margin-top:8px}
+.badge{font-size:9.5px; font-weight:800; padding:3px 8px; border-radius:20px; color:#fff; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap}
+.badge.ok{background:var(--ok)} .badge.warn{background:var(--amber)} .badge.due{background:var(--clay)} .badge.none{background:var(--grey)}
+
+.stat-row{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px}
+.stat-tile{flex:1; min-width:120px; background:#fff; border:1px solid var(--air); border-radius:10px; padding:12px 14px}
+.stat-tile .n{font-size:24px; font-weight:800; line-height:1}
+.stat-tile .l{font-size:10px; color:var(--grey); text-transform:uppercase; letter-spacing:.08em; margin-top:4px}
+
+/* ---- Forms ---- */
+label.f-label{display:block; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--grey); font-weight:700; margin-bottom:4px}
+input[type=text], input[type=date], input[type=email], input[type=number], textarea, select{
+  width:100%; padding:8px 10px; border:1.5px solid var(--air); border-radius:7px; font-size:13px;
+  font-family:'Barlow',sans-serif; background:#fff; color:var(--dark);
+}
+input:focus, textarea:focus, select:focus{outline:none; border-color:var(--blue)}
+.field{margin-bottom:12px}
+.field-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:14px}
+
+/* ---- Checklist ---- */
+.search-wrap{position:relative; margin-bottom:14px}
+.search-wrap input{padding-left:32px}
+.search-wrap::before{content:"⌕"; position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--grey); font-size:16px}
+.summary-strip{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap}
+.chip{font-size:11px; font-weight:700; padding:5px 10px; border-radius:20px; background:#fff; border:1.5px solid var(--air)}
+.chip.present{color:var(--ok); border-color:var(--ok)}
+.chip.missing{color:var(--clay); border-color:var(--clay)}
+.chip.damaged{color:var(--amber); border-color:var(--amber)}
+.chip.expiring{color:var(--clay); border-color:var(--clay)}
+
+.tool-row{background:#fff; border:1px solid var(--air); border-radius:10px; padding:10px 12px; margin-bottom:8px}
+.tool-row .top{display:flex; justify-content:space-between; gap:8px; align-items:flex-start}
+.tool-name-input{font-weight:600; font-size:13.5px; border:1px solid transparent; background:transparent; padding:2px 4px; border-radius:5px; width:100%}
+.tool-name-input:hover, .tool-name-input:focus{border-color:var(--air); background:#fafafa}
+.tool-sub{display:flex; gap:8px; margin-top:6px; flex-wrap:wrap}
+.tool-sub input{width:auto; min-width:90px; font-size:11.5px; padding:5px 8px}
+.tool-sub .tiny-label{font-size:9px; color:var(--grey); text-transform:uppercase; margin-right:3px; align-self:center}
+.exp-tag{font-size:9.5px; font-weight:700; padding:3px 7px; border-radius:6px; white-space:nowrap; color:#fff}
+.exp-tag.red{background:var(--clay)} .exp-tag.amber{background:var(--amber)} .exp-tag.ok{background:var(--ok)}
+.status-pills{display:flex; gap:6px; margin-top:8px}
+.pill{font-size:10.5px; font-weight:700; padding:5px 11px; border-radius:14px; border:1.5px solid var(--air); color:var(--grey); background:#fff}
+.pill.sel-present{background:#E7F6EC; border-color:var(--ok); color:#2f8a4d}
+.pill.sel-missing{background:#FBEAE8; border-color:var(--clay); color:var(--clay)}
+.pill.sel-damaged{background:#FEF3E0; border-color:var(--amber); color:#8a6200}
+.note-box{margin-top:8px}
+.note-box textarea{min-height:44px; resize:vertical}
+.row-actions{display:flex; gap:6px; align-items:center}
+.icon-btn{background:none; border:none; color:var(--grey); font-size:15px; padding:2px 6px; border-radius:5px}
+.icon-btn:hover{color:var(--clay); background:#fafafa}
+
+/* ---- Signature ---- */
+.sig-canvas-wrap{border:2px dashed var(--air); border-radius:10px; background:#fff; margin-bottom:8px}
+canvas.sig-canvas{width:100%; height:160px; display:block; touch-action:none}
+.sig-block{max-width:460px}
+
+/* ---- Table (history / replacement) ---- */
+table.data-table{width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--air); border-radius:10px; overflow:hidden}
+table.data-table th{text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--grey); padding:9px 12px; background:#FAFAF9; border-bottom:1px solid var(--air)}
+table.data-table td{padding:9px 12px; font-size:12.5px; border-bottom:1px solid #EFEFEE}
+table.data-table tr:last-child td{border-bottom:none}
+table.data-table tr.clickable{cursor:pointer}
+table.data-table tr.clickable:hover{background:#FAFAF9}
+
+.tabs2{display:flex; gap:4px; margin-bottom:14px; background:#fff; border:1px solid var(--air); border-radius:8px; padding:3px; width:fit-content}
+.tab2{padding:6px 16px; font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; border-radius:6px; color:var(--grey); background:none; border:none}
+.tab2.active{background:var(--dark); color:var(--yellow)}
+
+.empty-state{text-align:center; padding:50px 20px; color:var(--grey)}
+.empty-state .big{font-size:34px; margin-bottom:8px}
+
+/* ---- Modal ---- */
+.modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:100; padding:16px}
+.modal{background:#fff; border-radius:12px; padding:20px; width:100%; max-width:480px; max-height:88vh; overflow-y:auto}
+.modal h3{margin:0 0 14px 0; font-size:17px; text-transform:uppercase; letter-spacing:.03em}
+.modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:16px}
+
+.notconfigured{display:flex; align-items:center; justify-content:center; height:100vh; padding:24px; background:var(--dark)}
+.notconfigured .box{background:#fff; border-radius:12px; padding:28px; max-width:520px}
+.notconfigured h2{margin-top:0}
+.notconfigured code{background:#F1F1F1; padding:2px 6px; border-radius:4px; font-size:12px}
+
+@media (max-width:820px){
+  .hamburger{display:inline-block}
+  .sidebar{position:fixed; left:0; top:0; bottom:0; z-index:50; transform:translateX(-100%); transition:transform .18s; padding-top:54px}
+  .sidebar.open{transform:translateX(0)}
+  .page{padding:14px}
+}
+</style>
+</head>
+<body>
+
+<div id="notconfigured" style="display:none" class="notconfigured">
+  <div class="box">
+    <h2>Rhino Tool Check — not connected yet</h2>
+    <p>This copy of the app hasn't been pointed at a Supabase project. Open <code>docs/index.html</code>, find the <code>SUPABASE_URL</code> / <code>SUPABASE_ANON_KEY</code> constants near the top of the script, and paste in the values from your Supabase project's <b>Settings → API</b> page. Then run <code>schema.sql</code> followed by <code>seed.sql</code> in the Supabase SQL editor.</p>
+    <p style="color:#9EA0A3;font-size:12px">See the README in the repo for the full walkthrough.</p>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <header class="res-header">
+    <div class="accent-bar"></div>
+    <div class="hdr-inner">
+      <div class="hdr-left">
+        <button class="hamburger" id="hamburgerBtn">☰</button>
+        <div class="brand">
+          <h1><span>RHINO</span>ENERGY</h1>
+          <div class="sub">Tool Check</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <span class="hdr-date" id="connStatus"><span class="conn-dot bad"></span>Connecting…</span>
+        <a class="hdr-btn" href="https://rhinoenergydavidwh.github.io/rhino-crash-hub/">&#8617; Hub</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <nav class="sidebar" id="sidebar">
+      <div class="nav-section">
+        <div class="nav-label">Operations</div>
+        <button class="nav-item" data-nav="dashboard">⌂ &nbsp;Dashboard</button>
+        <button class="nav-item" data-nav="check">✓ &nbsp;Run Check</button>
+        <button class="nav-item" data-nav="history">⏱ &nbsp;History</button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Manage</div>
+        <button class="nav-item" data-nav="teams">☰ &nbsp;Teams &amp; Tools</button>
+        <button class="nav-item" data-nav="replacements">⚠ &nbsp;Replacement Needs<span class="nav-badge" id="replBadge" style="display:none">0</span></button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">System</div>
+        <button class="nav-item" data-nav="settings">⚙ &nbsp;Settings</button>
+      </div>
+      <div class="sidebar-footer">
+        <p>Solar &#183; Energy &#183; Excellence</p>
+        <p class="credit">Rhino Tool Check · Rhino Energy Solutions<br>Created by Dave J Wilson</p>
+      </div>
+    </nav>
+
+    <main class="main" id="main">
+      <!-- rendered content goes here -->
+    </main>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   Rhino Tool Check
+   Single-file vanilla-JS app, matching the Rhino Energy Solutions suite
+   (branding, single index.html, GitHub Pages, Supabase backend).
+   Also wrapped by Capacitor to build the sideloadable Android APK.
+   ===================================================================== */
+
+// ---- 1. Supabase config — paste your project's values here, never in chat ----
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+
+const IS_CONFIGURED = SUPABASE_URL !== "YOUR_SUPABASE_URL" && SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY";
+
+if (!IS_CONFIGURED) {
+  document.getElementById('notconfigured').style.display = 'flex';
+} else {
+  document.getElementById('app').style.display = 'flex';
+}
+
+const sb = IS_CONFIGURED ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+// ---- 2. Constants ----
+const EXPIRY_WARN_DAYS = 60;
+const OVERDUE_DAYS = 90;
+const COMPLIANCE_LINE = "This document was developed with the assistance of an AI agent under the direction of qualified RES personnel.";
+const DEFAULT_MGR_EMAIL_KEY = "rtc_default_manager_email";
+
+// ---- 3. State ----
+const state = {
+  section: 'dashboard',
+  teams: [],
+  activeTeamId: null,
+  checkDraft: null,   // { team, date, leaderName, checkerName, items: [...] }
+  signStep: 0,        // 0 = checker signing, 1 = leader signing
+  checkerSig: null,
+  leaderSig: null,
+  historyFilter: { teamId: '', from: '', to: '' },
+  replMode: 'team',
+  manageTeamId: null,
+  reportCheckId: null,
+};
+
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const uid = () => 'tmp-' + Math.random().toString(36).slice(2, 10);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function fmtDate(d) {
+  if (!d) return '—';
+  let dt;
+  if (d instanceof Date) dt = d;
+  else if (typeof d === 'string' && d.includes('T')) dt = new Date(d); // already a full timestamp
+  else dt = new Date(d + 'T00:00:00'); // plain YYYY-MM-DD date
+  return dt.toLocaleDateString('en-ZA', { day:'2-digit', month:'short', year:'numeric' });
+}
+function todayStr() {
+  const d = new Date();
+  return d.toISOString().slice(0,10);
+}
+function daysSince(dateStr) {
+  if (!dateStr) return Infinity;
+  const d = new Date(dateStr + 'T00:00:00');
+  return Math.floor((Date.now() - d.getTime()) / 86400000);
+}
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00');
+  return Math.floor((d.getTime() - Date.now()) / 86400000);
+}
+
+// ---- 4. Data access (Supabase) ----
+async function fetchTeams() {
+  const { data, error } = await sb.from('teams').select('*').order('name');
+  if (error) { console.error(error); return []; }
+  return data;
+}
+async function fetchTools(teamId) {
+  const { data, error } = await sb.from('tools').select('*').eq('team_id', teamId).order('sort_order');
+  if (error) { console.error(error); return []; }
+  return data;
+}
+async function fetchChecksForTeam(teamId, limit=500) {
+  let q = sb.from('checks').select('*').order('check_date', { ascending:false }).order('created_at', { ascending:false }).limit(limit);
+  if (teamId) q = q.eq('team_id', teamId);
+  const { data, error } = await q;
+  if (error) { console.error(error); return []; }
+  return data;
+}
+async function fetchCheckItems(checkId) {
+  const { data, error } = await sb.from('check_items').select('*').eq('check_id', checkId).order('created_at');
+  if (error) { console.error(error); return []; }
+  return data;
+}
+async function fetchOutstandingReplacements() {
+  // Latest check_item per (team_id, tool identity), where status != present and not replaced.
+  const { data, error } = await sb.from('check_items').select('*').order('created_at', { ascending:false });
+  if (error) { console.error(error); return []; }
+  const latestByKey = new Map();
+  for (const row of data) {
+    const key = row.team_id + '::' + (row.tool_id || row.tool_name);
+    if (!latestByKey.has(key)) latestByKey.set(key, row);
+  }
+  return Array.from(latestByKey.values()).filter(r => (r.status === 'missing' || r.status === 'damaged') && !r.replaced_at);
+}
+
+async function saveTeam(payload) {
+  const { data, error } = await sb.from('teams').insert(payload).select().single();
+  if (error) { alert('Could not save team: ' + error.message); return null; }
+  return data;
+}
+async function updateTeam(id, payload) {
+  const { error } = await sb.from('teams').update(payload).eq('id', id);
+  if (error) alert('Could not update team: ' + error.message);
+}
+async function deleteTeamRow(id) {
+  const { error } = await sb.from('teams').delete().eq('id', id);
+  if (error) alert('Could not delete team: ' + error.message);
+}
+async function saveTool(payload) {
+  const { data, error } = await sb.from('tools').insert(payload).select().single();
+  if (error) { alert('Could not save tool: ' + error.message); return null; }
+  return data;
+}
+async function updateTool(id, payload) {
+  const { error } = await sb.from('tools').update(payload).eq('id', id);
+  if (error) alert('Could not update tool: ' + error.message);
+}
+async function deleteToolRow(id) {
+  const { error } = await sb.from('tools').delete().eq('id', id);
+  if (error) alert('Could not delete tool: ' + error.message);
+}
+async function saveCheckWithItems(check, items) {
+  const { data: checkRow, error: e1 } = await sb.from('checks').insert(check).select().single();
+  if (e1) { alert('Could not save check: ' + e1.message); return null; }
+  const rows = items.map(it => ({ ...it, check_id: checkRow.id, team_id: check.team_id }));
+  const { error: e2 } = await sb.from('check_items').insert(rows);
+  if (e2) { alert('Check saved, but items failed: ' + e2.message); }
+  await updateTeam(check.team_id, { last_check_at: check.check_date });
+  return checkRow;
+}
+async function markReplaced(itemId, by) {
+  const { error } = await sb.from('check_items').update({ replaced_at: new Date().toISOString(), replaced_by: by || 'Warehouse' }).eq('id', itemId);
+  if (error) alert('Could not update: ' + error.message);
+}
+
+// ---- 5. Router / render ----
+function navigate(section, opts={}) {
+  state.section = section;
+  Object.assign(state, opts);
+  $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.nav === section));
+  $('#sidebar').classList.remove('open');
+  render();
+}
+
+async function render() {
+  const main = $('#main');
+  main.innerHTML = '<div class="page"><p style="color:var(--grey)">Loading…</p></div>';
+  try {
+    switch (state.section) {
+      case 'dashboard': return renderDashboard(main);
+      case 'check': return renderCheck(main);
+      case 'history': return renderHistory(main);
+      case 'teams': return renderTeams(main);
+      case 'replacements': return renderReplacements(main);
+      case 'settings': return renderSettings(main);
+      default: return renderDashboard(main);
+    }
+  } catch (err) {
+    console.error(err);
+    main.innerHTML = `<div class="page"><p style="color:var(--clay)">Something went wrong rendering this page: ${esc(err.message)}</p></div>`;
+  }
+}
+
+// ---- 6. Dashboard ----
+async function renderDashboard(main) {
+  const teams = await fetchTeams();
+  state.teams = teams;
+  const outstanding = await fetchOutstandingReplacements();
+  updateReplBadge(outstanding.length);
+
+  const overdue = teams.filter(t => daysSince(t.last_check_at) >= OVERDUE_DAYS).length;
+  const dueSoon = teams.filter(t => { const d = daysSince(t.last_check_at); return d < OVERDUE_DAYS && d >= OVERDUE_DAYS - 14; }).length;
+
+  main.innerHTML = `
+    <div class="page">
+      <div class="topbar">
+        <div><h2>Dashboard</h2><div class="topbar-sub">${teams.length} teams &middot; ${todayLong()}</div></div>
+        <div class="topbar-actions"><button class="btn btn-primary" id="btnNewTeam">+ Add Team</button></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-tile"><div class="n">${teams.length}</div><div class="l">Teams</div></div>
+        <div class="stat-tile"><div class="n" style="color:${overdue ? 'var(--clay)' : 'var(--dark)'}">${overdue}</div><div class="l">Overdue checks</div></div>
+        <div class="stat-tile"><div class="n" style="color:${dueSoon ? 'var(--amber)' : 'var(--dark)'}">${dueSoon}</div><div class="l">Due soon</div></div>
+        <div class="stat-tile"><div class="n" style="color:${outstanding.length ? 'var(--clay)' : 'var(--dark)'}">${outstanding.length}</div><div class="l">Outstanding replacements</div></div>
+      </div>
+      <div class="grid" id="teamGrid"></div>
+    </div>`;
+
+  const grid = $('#teamGrid');
+  if (!teams.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="big">🦏</div>No teams yet — add your first one.</div>`;
+  } else {
+    grid.innerHTML = teams.map(t => {
+      const d = daysSince(t.last_check_at);
+      let badge = `<span class="badge none">NO CHECKS YET</span>`;
+      if (t.last_check_at) {
+        if (d >= OVERDUE_DAYS) badge = `<span class="badge due">OVERDUE</span>`;
+        else if (d >= OVERDUE_DAYS - 14) badge = `<span class="badge warn">DUE SOON</span>`;
+        else badge = `<span class="badge ok">OK</span>`;
+      }
+      return `<div class="card team-card" data-team="${t.id}">
+        <div class="row1"><div><div class="name">${esc(t.name)}</div><div class="leader">Leader: ${esc(t.leader || '—')}</div></div>${badge}</div>
+        <div class="meta">Last check: ${t.last_check_at ? fmtDate(t.last_check_at) : 'never'}</div>
+      </div>`;
+    }).join('');
+    $$('.team-card', grid).forEach(c => c.addEventListener('click', () => navigate('check', { activeTeamId: c.dataset.team, checkDraft: null })));
+  }
+  $('#btnNewTeam').addEventListener('click', () => openTeamModal());
+}
+function todayLong() {
+  return new Date().toLocaleDateString('en-ZA', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+}
+function updateReplBadge(n) {
+  const b = $('#replBadge');
+  if (!b) return;
+  if (n > 0) { b.style.display = 'inline-block'; b.textContent = n; } else { b.style.display = 'none'; }
+}
+
+// ---- 7. Run Check flow ----
+async function renderCheck(main) {
+  const teams = state.teams.length ? state.teams : await fetchTeams();
+  state.teams = teams;
+
+  if (!state.checkDraft) {
+    // Team-select / meta step
+    main.innerHTML = `
+      <div class="page">
+        <div class="topbar"><div><h2>Run Check</h2><div class="topbar-sub">Pick a team to start</div></div></div>
+        <div class="field-grid">
+          <div class="field"><label class="f-label">Team</label>
+            <select id="ccTeam">
+              <option value="">Select a team…</option>
+              ${teams.map(t => `<option value="${t.id}" ${t.id===state.activeTeamId?'selected':''}>${esc(t.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field"><label class="f-label">Date</label><input type="date" id="ccDate" value="${todayStr()}"></div>
+          <div class="field"><label class="f-label">Team leader</label><input type="text" id="ccLeader" placeholder="Auto-fills from team"></div>
+          <div class="field"><label class="f-label">Checked by</label><input type="text" id="ccChecker" placeholder="Your name"></div>
+        </div>
+        <button class="btn btn-primary" id="ccStart">Start Checklist →</button>
+      </div>`;
+    const teamSel = $('#ccTeam');
+    const leaderInput = $('#ccLeader');
+    const fillLeader = () => {
+      const t = teams.find(t => t.id === teamSel.value);
+      leaderInput.value = t ? (t.leader || '') : '';
+    };
+    teamSel.addEventListener('change', fillLeader);
+    if (state.activeTeamId) fillLeader();
+    $('#ccStart').addEventListener('click', async () => {
+      if (!teamSel.value) return alert('Pick a team first.');
+      if (!$('#ccChecker').value.trim()) return alert('Enter who is doing the check.');
+      const team = teams.find(t => t.id === teamSel.value);
+      const tools = await fetchTools(team.id);
+      state.checkDraft = {
+        team, date: $('#ccDate').value || todayStr(),
+        leaderName: leaderInput.value.trim(), checkerName: $('#ccChecker').value.trim(),
+        items: tools.map(tool => ({
+          _key: uid(), tool_id: tool.id, tool_name: tool.name, qty: tool.qty,
+          serial_number: tool.serial_number, expiry_date: tool.expiry_date,
+          status: null, note: ''
+        })),
+        filter: ''
+      };
+      state.signStep = 0; state.checkerSig = null; state.leaderSig = null;
+      render();
+    });
+    return;
+  }
+
+  if (state.section === 'check' && state._signoff) {
+    return renderSignoff(main);
+  }
+
+  renderChecklist(main);
+}
+
+function expiryTag(expiry) {
+  if (!expiry) return '';
+  const d = daysUntil(expiry);
+  if (d < 0) return `<span class="exp-tag red">EXPIRED ${fmtDate(expiry)}</span>`;
+  if (d <= EXPIRY_WARN_DAYS) return `<span class="exp-tag amber">EXPIRES ${fmtDate(expiry)} (${d}d)</span>`;
+  return `<span class="exp-tag ok">Valid to ${fmtDate(expiry)}</span>`;
+}
+
+function renderChecklist(main) {
+  const draft = state.checkDraft;
+  const filter = (draft.filter || '').toLowerCase();
+  const visible = draft.items.filter(it => !filter || it.tool_name.toLowerCase().includes(filter) || (it.serial_number||'').toLowerCase().includes(filter));
+  const counts = { present:0, missing:0, damaged:0, unset:0, expiring:0 };
+  draft.items.forEach(it => {
+    if (it.status) counts[it.status]++; else counts.unset++;
+    if (it.expiry_date && daysUntil(it.expiry_date) <= EXPIRY_WARN_DAYS) counts.expiring++;
+  });
+
+  main.innerHTML = `
+    <div class="page">
+      <div class="topbar">
+        <div><h2>${esc(draft.team.name)}</h2><div class="topbar-sub">${fmtDate(draft.date)} &middot; Leader ${esc(draft.leaderName||'—')} &middot; Checked by ${esc(draft.checkerName)}</div></div>
+        <div class="topbar-actions">
+          <button class="btn btn-outline btn-sm" id="ccCancel">Cancel</button>
+          <button class="btn btn-primary" id="ccToSignoff">Continue to Sign-off →</button>
+        </div>
+      </div>
+      <div class="summary-strip">
+        <span class="chip present">${counts.present} Present</span>
+        <span class="chip missing">${counts.missing} Missing</span>
+        <span class="chip damaged">${counts.damaged} Damaged</span>
+        ${counts.expiring ? `<span class="chip expiring">${counts.expiring} Expiring soon</span>` : ''}
+        <span class="chip">${counts.unset} Not yet checked</span>
+      </div>
+      <div class="search-wrap"><input type="text" id="ccSearch" placeholder="Search by tool name or serial number… (e.g. harness)" value="${esc(draft.filter||'')}"></div>
+      <div id="toolList"></div>
+      <button class="btn btn-outline" id="ccAddTool" style="margin-top:6px">+ Add tool</button>
+    </div>`;
+
+  const list = $('#toolList');
+  if (!visible.length) {
+    list.innerHTML = `<div class="empty-state">No tools match "${esc(draft.filter)}".</div>`;
+  } else {
+    list.innerHTML = visible.map(rowHtml).join('');
+  }
+
+  $('#ccSearch').addEventListener('input', e => { draft.filter = e.target.value; renderChecklist(main); });
+  $('#ccAddTool').addEventListener('click', () => {
+    draft.items.push({ _key: uid(), tool_id: null, tool_name: '', qty:'1', serial_number:'', expiry_date:null, status:null, note:'' });
+    renderChecklist(main);
+  });
+  $('#ccCancel').addEventListener('click', () => { if (confirm('Discard this check?')) { state.checkDraft = null; navigate('dashboard'); } });
+  $('#ccToSignoff').addEventListener('click', () => {
+    const missingStatus = draft.items.find(it => !it.status);
+    if (missingStatus) return alert(`Every tool needs a status. "${missingStatus.tool_name || '(unnamed tool)'}" isn't marked yet.`);
+    const missingNote = draft.items.find(it => (it.status === 'missing' || it.status === 'damaged') && !it.note.trim());
+    if (missingNote) return alert(`"${missingNote.tool_name}" is marked ${missingNote.status} and needs a note before you continue.`);
+    state._signoff = true;
+    render();
+  });
+
+  attachRowHandlers(list, draft, main);
+}
+
+function rowHtml(it) {
+  return `<div class="tool-row" data-key="${it._key}">
+    <div class="top">
+      <input class="tool-name-input" data-f="tool_name" value="${esc(it.tool_name)}" placeholder="Tool name">
+      <div class="row-actions">${expiryTag(it.expiry_date)}<button class="icon-btn" data-del title="Remove">✕</button></div>
+    </div>
+    <div class="tool-sub">
+      <span class="tiny-label">Qty</span><input data-f="qty" value="${esc(it.qty)}" style="width:56px">
+      <span class="tiny-label">Serial</span><input data-f="serial_number" value="${esc(it.serial_number)}" style="flex:1;min-width:120px">
+    </div>
+    <div class="status-pills">
+      <button class="pill ${it.status==='present'?'sel-present':''}" data-status="present">PRESENT</button>
+      <button class="pill ${it.status==='missing'?'sel-missing':''}" data-status="missing">MISSING</button>
+      <button class="pill ${it.status==='damaged'?'sel-damaged':''}" data-status="damaged">DAMAGED</button>
+    </div>
+    ${(it.status==='missing'||it.status==='damaged') ? `<div class="note-box"><textarea placeholder="Required note — what's wrong / what's needed" data-f="note">${esc(it.note)}</textarea></div>` : ''}
+  </div>`;
+}
+
+function attachRowHandlers(list, draft, main) {
+  $$('.tool-row', list).forEach(rowEl => {
+    const key = rowEl.dataset.key;
+    const item = draft.items.find(i => i._key === key);
+    $$('input[data-f], textarea[data-f]', rowEl).forEach(inp => {
+      inp.addEventListener('change', () => { item[inp.dataset.f] = inp.value; });
+      inp.addEventListener('blur', () => { item[inp.dataset.f] = inp.value; });
+    });
+    $$('.pill', rowEl).forEach(p => p.addEventListener('click', () => {
+      item.status = p.dataset.status;
+      renderChecklist(main);
+    }));
+    const del = $('[data-del]', rowEl);
+    if (del) del.addEventListener('click', () => {
+      draft.items = draft.items.filter(i => i._key !== key);
+      renderChecklist(main);
+    });
+  });
+}
+
+// ---- 8. Signature pad ----
+class SigPad {
+  constructor(canvas) {
+    this.canvas = canvas; this.ctx = canvas.getContext('2d');
+    this.drawing = false; this.empty = true;
+    this._resize();
+    canvas.addEventListener('pointerdown', e => this._start(e));
+    canvas.addEventListener('pointermove', e => this._move(e));
+    window.addEventListener('pointerup', () => this.drawing = false);
+    this.ctx.lineWidth = 2.4; this.ctx.lineCap = 'round'; this.ctx.strokeStyle = '#3F3F40';
+  }
+  _resize() {
+    const rect = this.canvas.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    this.canvas.width = rect.width * ratio; this.canvas.height = rect.height * ratio;
+    this.ctx.scale(ratio, ratio);
+    this.ctx.lineWidth = 2.4; this.ctx.lineCap = 'round'; this.ctx.strokeStyle = '#3F3F40';
+  }
+  _pos(e) { const r = this.canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  _start(e) { this.drawing = true; this.empty = false; const p = this._pos(e); this.ctx.beginPath(); this.ctx.moveTo(p.x, p.y); }
+  _move(e) { if (!this.drawing) return; const p = this._pos(e); this.ctx.lineTo(p.x, p.y); this.ctx.stroke(); }
+  clear() { this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height); this.empty = true; }
+  isEmpty() { return this.empty; }
+  toDataURL() { return this.canvas.toDataURL('image/png'); }
+}
+
+function renderSignoff(main) {
+  const draft = state.checkDraft;
+  const counts = { present:0, missing:0, damaged:0 };
+  draft.items.forEach(it => counts[it.status]++);
+  const expiring = draft.items.filter(it => it.expiry_date && daysUntil(it.expiry_date) <= EXPIRY_WARN_DAYS).length;
+
+  main.innerHTML = `
+    <div class="page">
+      <div class="topbar"><div><h2>Sign Off</h2><div class="topbar-sub">${esc(draft.team.name)} &middot; ${fmtDate(draft.date)}</div></div>
+        <button class="btn btn-outline btn-sm" id="backToList">← Back to checklist</button>
+      </div>
+      <div class="card" style="max-width:460px; margin-bottom:18px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Present</span><b>${counts.present}</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Missing</span><b style="color:var(--clay)">${counts.missing}</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Damaged</span><b style="color:var(--amber)">${counts.damaged}</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span>Expiring soon</span><b style="color:${expiring?'var(--clay)':'var(--dark)'}">${expiring}</b></div>
+      </div>
+      <div class="sig-block">
+        <div id="sigChecker" style="${state.signStep===0?'':'display:none'}">
+          <label class="f-label">Checker signature — ${esc(draft.checkerName)}</label>
+          <div class="sig-canvas-wrap"><canvas class="sig-canvas" id="sigCanvasChecker"></canvas></div>
+          <div style="display:flex;gap:8px"><button class="btn btn-outline btn-sm" id="clearChecker">Clear</button><button class="btn btn-primary" id="nextToLeader">Next: Team Leader signs →</button></div>
+        </div>
+        <div id="sigLeader" style="${state.signStep===1?'':'display:none'}">
+          <label class="f-label">Team leader signature — ${esc(draft.leaderName)}</label>
+          <div class="sig-canvas-wrap"><canvas class="sig-canvas" id="sigCanvasLeader"></canvas></div>
+          <div style="display:flex;gap:8px"><button class="btn btn-outline btn-sm" id="clearLeader">Clear</button><button class="btn btn-primary" id="saveCheck">Save Check</button></div>
+        </div>
+      </div>
+    </div>`;
+
+  $('#backToList').addEventListener('click', () => { state._signoff = false; render(); });
+
+  if (state.signStep === 0) {
+    const pad = new SigPad($('#sigCanvasChecker'));
+    if (state._checkerPadData) { /* nothing to restore visually, kept simple */ }
+    $('#clearChecker').addEventListener('click', () => pad.clear());
+    $('#nextToLeader').addEventListener('click', () => {
+      if (pad.isEmpty()) return alert('Please sign before continuing.');
+      state.checkerSig = pad.toDataURL();
+      state.signStep = 1;
+      renderSignoff(main);
+    });
+  } else {
+    const pad = new SigPad($('#sigCanvasLeader'));
+    $('#clearLeader').addEventListener('click', () => pad.clear());
+    $('#saveCheck').addEventListener('click', async () => {
+      if (pad.isEmpty()) return alert('Please sign before saving.');
+      state.leaderSig = pad.toDataURL();
+      $('#saveCheck').disabled = true; $('#saveCheck').textContent = 'Saving…';
+      const checkRow = await saveCheckWithItems(
+        { team_id: draft.team.id, check_date: draft.date, leader_name: draft.leaderName, checker_name: draft.checkerName, checker_signature: state.checkerSig, leader_signature: state.leaderSig },
+        draft.items.map(it => ({ tool_id: it.tool_id, tool_name: it.tool_name, qty: it.qty, serial_number: it.serial_number, status: it.status, note: it.note || null }))
+      );
+      if (!checkRow) { $('#saveCheck').disabled = false; $('#saveCheck').textContent = 'Save Check'; return; }
+      state.checkDraft = null; state._signoff = false;
+      navigate('history', { reportCheckId: checkRow.id });
+      openReport(checkRow.id);
+    });
+  }
+}
+
+// ---- 9. Report + PDF ----
+async function openReport(checkId) {
+  const { data: check } = await sb.from('checks').select('*, teams(name)').eq('id', checkId).single();
+  const items = await fetchCheckItems(checkId);
+  const main = $('#main');
+  const counts = { present:0, missing:0, damaged:0 };
+  items.forEach(it => counts[it.status]++);
+
+  main.innerHTML = `
+    <div class="page">
+      <div class="topbar"><div><h2>Check Report</h2><div class="topbar-sub">${esc(check.teams.name)} &middot; ${fmtDate(check.check_date)}</div></div>
+        <div class="topbar-actions">
+          <button class="btn btn-outline" id="btnBackHistory">← Back to History</button>
+          <button class="btn btn-dark" id="btnPdf">⬇ Export PDF</button>
+          <button class="btn btn-primary" id="btnSend">Send to Manager</button>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-tile"><div class="n">${counts.present||0}</div><div class="l">Present</div></div>
+        <div class="stat-tile"><div class="n" style="color:var(--clay)">${counts.missing||0}</div><div class="l">Missing</div></div>
+        <div class="stat-tile"><div class="n" style="color:var(--amber)">${counts.damaged||0}</div><div class="l">Damaged</div></div>
+      </div>
+      <p style="font-size:12.5px;color:var(--grey)">Checked by <b style="color:var(--dark)">${esc(check.checker_name)}</b> &middot; Team leader <b style="color:var(--dark)">${esc(check.leader_name)}</b></p>
+      <table class="data-table"><thead><tr><th>Tool</th><th>Qty</th><th>Serial</th><th>Status</th><th>Note</th></tr></thead>
+      <tbody>${items.map(it => `<tr><td>${esc(it.tool_name)}</td><td>${esc(it.qty)}</td><td>${esc(it.serial_number)}</td><td style="text-transform:uppercase;font-weight:700;color:${it.status==='present'?'var(--ok)':it.status==='missing'?'var(--clay)':'var(--amber)'}">${it.status}</td><td>${esc(it.note||'')}</td></tr>`).join('')}</tbody></table>
+    </div>`;
+
+  $('#btnBackHistory').addEventListener('click', () => navigate('history'));
+  $('#btnPdf').addEventListener('click', () => buildCheckPdf(check, items).save(`tool-check-${check.teams.name.replace(/\W+/g,'-')}-${check.check_date}.pdf`));
+  $('#btnSend').addEventListener('click', () => {
+    const doc = buildCheckPdf(check, items);
+    const filename = `tool-check-${check.teams.name.replace(/\W+/g,'-')}-${check.check_date}.pdf`;
+    sendToManager(doc.output('datauristring'), filename);
+  });
+}
+
+function pdfHeader(doc, title, subtitle) {
+  doc.setFillColor(63,63,64); doc.rect(0,0,210,20,'F');
+  doc.setFillColor(253,221,0); doc.rect(0,20,210,1.5,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.text('RHINO ENERGY — ' + title, 12, 13);
+  doc.setTextColor(30,30,30); doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text(subtitle, 12, 28);
+}
+function pdfFooter(doc) {
+  const h = doc.internal.pageSize.getHeight();
+  doc.setFontSize(7.5); doc.setTextColor(120,120,120);
+  doc.text(COMPLIANCE_LINE, 12, h - 12, { maxWidth: 186 });
+  doc.text('Rhino Tool Check · Rhino Energy Solutions', 12, h - 6);
+}
+
+function buildCheckPdf(check, items) {
+  const doc = new jspdf.jsPDF();
+  pdfHeader(doc, 'TOOL CHECK REPORT', `${check.teams.name}  ·  ${fmtDate(check.check_date)}  ·  Checked by ${check.checker_name}  ·  Leader ${check.leader_name}`);
+  const counts = { present:0, missing:0, damaged:0 };
+  items.forEach(it => counts[it.status]++);
+  doc.setFontSize(10); doc.setTextColor(30,30,30);
+  doc.text(`Present: ${counts.present||0}    Missing: ${counts.missing||0}    Damaged: ${counts.damaged||0}`, 12, 36);
+  doc.autoTable({
+    startY: 42,
+    head: [['Tool','Qty','Serial','Status','Note']],
+    body: items.map(it => [it.tool_name, it.qty, it.serial_number, it.status.toUpperCase(), it.note||'']),
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [63,63,64], textColor: 255 },
+    didParseCell: (d) => {
+      if (d.section==='body' && d.column.index===3) {
+        const v=d.cell.raw; d.cell.styles.textColor = v==='PRESENT'?[47,138,77]:v==='MISSING'?[204,100,92]:[138,98,0];
+        d.cell.styles.fontStyle='bold';
+      }
+    }
+  });
+  let y = doc.lastAutoTable.finalY + 10;
+  if (y > 250) { doc.addPage(); y = 20; }
+  doc.setFontSize(9); doc.setTextColor(30,30,30);
+  doc.text('Checker signature:', 12, y);
+  if (check.checker_signature) doc.addImage(check.checker_signature, 'PNG', 12, y+3, 60, 22);
+  doc.text('Team leader signature:', 110, y);
+  if (check.leader_signature) doc.addImage(check.leader_signature, 'PNG', 110, y+3, 60, 22);
+  pdfFooter(doc);
+  return doc;
+}
+
+async function sendToManager(pdfDataUri, filename) {
+  const defaultEmail = localStorage.getItem(DEFAULT_MGR_EMAIL_KEY) || '';
+  if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
+    try {
+      const base64 = pdfDataUri.split(',')[1];
+      const { Filesystem, Directory } = window.Capacitor.Plugins;
+      await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Cache });
+      const uriResult = await Filesystem.getUri({ path: filename, directory: Directory.Cache });
+      await window.Capacitor.Plugins.Share.share({
+        title: filename,
+        text: defaultEmail ? `Tool check report — ${filename}` : undefined,
+        url: uriResult.uri,
+        dialogTitle: 'Send report via'
+      });
+    } catch (err) {
+      alert('Could not open the share sheet: ' + err.message);
+    }
+  } else {
+    const a = document.createElement('a'); a.href = pdfDataUri; a.download = filename; a.click();
+    alert('Downloaded the PDF. The native "Send to Manager" share sheet (WhatsApp / email / etc.) is available once this is installed as the Android app.');
+  }
+}
+
+// ---- 10. History ----
+async function renderHistory(main) {
+  const teams = state.teams.length ? state.teams : await fetchTeams();
+  state.teams = teams;
+  const f = state.historyFilter;
+
+  main.innerHTML = `
+    <div class="page">
+      <div class="topbar"><div><h2>History</h2><div class="topbar-sub">All completed tool checks</div></div></div>
+      <div class="field-grid">
+        <div class="field"><label class="f-label">Team</label><select id="hfTeam"><option value="">All teams</option>${teams.map(t=>`<option value="${t.id}" ${f.teamId===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></div>
+        <div class="field"><label class="f-label">From</label><input type="date" id="hfFrom" value="${f.from}"></div>
+        <div class="field"><label class="f-label">To</label><input type="date" id="hfTo" value="${f.to}"></div>
+      </div>
+      <div id="histTableWrap"></div>
+    </div>`;
+
+  $('#hfTeam').addEventListener('change', e => { f.teamId = e.target.value; renderHistory(main); });
+  $('#hfFrom').addEventListener('change', e => { f.from = e.target.value; renderHistory(main); });
+  $('#hfTo').addEventListener('change', e => { f.to = e.target.value; renderHistory(main); });
+
+  let checks = await fetchChecksForTeam(f.teamId || null);
+  if (f.from) checks = checks.filter(c => c.check_date >= f.from);
+  if (f.to) checks = checks.filter(c => c.check_date <= f.to);
+  const teamName = id => (teams.find(t=>t.id===id)||{}).name || '—';
+
+  const wrap = $('#histTableWrap');
+  if (!checks.length) {
+    wrap.innerHTML = `<div class="empty-state">No checks recorded yet for this filter.</div>`;
+    return;
+  }
+  // fetch item counts per check
+  const rows = await Promise.all(checks.map(async c => {
+    const items = await fetchCheckItems(c.id);
+    const counts = { present:0, missing:0, damaged:0 };
+    items.forEach(it => counts[it.status]++);
+    return { c, counts };
+  }));
+  wrap.innerHTML = `<table class="data-table"><thead><tr><th>Date</th><th>Team</th><th>Checker</th><th>Leader</th><th>Present</th><th>Missing</th><th>Damaged</th></tr></thead>
+    <tbody>${rows.map(({c,counts}) => `<tr class="clickable" data-id="${c.id}"><td>${fmtDate(c.check_date)}</td><td>${esc(teamName(c.team_id))}</td><td>${esc(c.checker_name)}</td><td>${esc(c.leader_name)}</td><td>${counts.present||0}</td><td style="color:var(--clay)">${counts.missing||0}</td><td style="color:var(--amber)">${counts.damaged||0}</td></tr>`).join('')}</tbody></table>`;
+  $$('tr[data-id]', wrap).forEach(tr => tr.addEventListener('click', () => openReport(tr.dataset.id)));
+}
+
+// ---- 11. Manage Teams & Tools ----
+async function renderTeams(main) {
+  const teams = await fetchTeams();
+  state.teams = teams;
+
+  main.innerHTML = `
+    <div class="page">
+      <div class="topbar"><div><h2>Teams &amp; Tools</h2><div class="topbar-sub">Add teams, edit rosters, manage each team's master tool list</div></div>
+        <button class="btn btn-primary" id="btnAddTeam">+ Add Team</button></div>
+      <div class="grid" id="teamMgrGrid"></div>
+      <div id="toolManagerWrap" style="margin-top:22px"></div>
+    </div>`;
+
+  $('#btnAddTeam').addEventListener('click', () => openTeamModal());
+
+  const grid = $('#teamMgrGrid');
+  grid.innerHTML = teams.map(t => `<div class="card team-card" data-team="${t.id}">
+      <div class="row1"><div><div class="name">${esc(t.name)}</div><div class="leader">Leader: ${esc(t.leader||'—')}</div></div></div>
+      <div class="meta">${(t.members||[]).join(', ') || 'No members listed'}</div>
+      <div style="margin-top:10px;display:flex;gap:6px">
+        <button class="btn btn-outline btn-sm" data-edit="${t.id}">Edit</button>
+        <button class="btn btn-danger btn-sm" data-del="${t.id}">Delete</button>
+      </div>
+    </div>`).join('');
+
+  $$('.team-card', grid).forEach(c => c.addEventListener('click', (e) => {
+    if (e.target.closest('button')) return;
+    state.manageTeamId = c.dataset.team;
+    renderToolManager();
+  }));
+  $$('[data-edit]', grid).forEach(b => b.addEventListener('click', () => openTeamModal(teams.find(t=>t.id===b.dataset.edit))));
+  $$('[data-del]', grid).forEach(b => b.addEventListener('click', async () => {
+    if (confirm('Delete this team and all its tools/history? This cannot be undone.')) { await deleteTeamRow(b.dataset.del); renderTeams(main); }
+  }));
+
+  if (state.manageTeamId) renderToolManager();
+}
+
+async function renderToolManager() {
+  const wrap = $('#toolManagerWrap');
+  if (!wrap) return;
+  const team = state.teams.find(t => t.id === state.manageTeamId);
+  if (!team) { wrap.innerHTML = ''; return; }
+  const tools = await fetchTools(team.id);
+  wrap.innerHTML = `
+    <div class="topbar"><h3 style="margin:0">${esc(team.name)} — Master Tool List</h3>
+      <button class="btn btn-outline btn-sm" id="btnAddToolRow">+ Add tool</button></div>
+    <div id="mgrToolList"></div>`;
+  const list = $('#mgrToolList');
+  list.innerHTML = tools.map(t => `<div class="tool-row" data-id="${t.id}">
+      <div class="top"><input class="tool-name-input" data-f="name" value="${esc(t.name)}"></div>
+      <div class="tool-sub">
+        <span class="tiny-label">Qty</span><input data-f="qty" value="${esc(t.qty)}" style="width:56px">
+        <span class="tiny-label">Serial</span><input data-f="serial_number" value="${esc(t.serial_number)}" style="min-width:120px">
+        <span class="tiny-label">Expiry (extinguishers/harnesses)</span><input type="date" data-f="expiry_date" value="${t.expiry_date||''}" style="width:150px">
+        <button class="icon-btn" data-del title="Remove" style="margin-left:auto">✕</button>
+      </div>
+    </div>`).join('') || `<div class="empty-state">No tools yet — add the first one.</div>`;
+
+  $$('.tool-row', list).forEach(row => {
+    const id = row.dataset.id;
+    $$('input[data-f]', row).forEach(inp => inp.addEventListener('change', () => updateTool(id, { [inp.dataset.f]: inp.value || null })));
+    $('[data-del]', row).addEventListener('click', async () => { if (confirm('Remove this tool?')) { await deleteToolRow(id); renderToolManager(); } });
+  });
+  $('#btnAddToolRow').addEventListener('click', async () => {
+    await saveTool({ team_id: team.id, name: 'New tool', qty: '1', serial_number: '', sort_order: tools.length });
+    renderToolManager();
+  });
+}
+
+function openTeamModal(existing) {
+  const isEdit = !!existing;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `<div class="modal">
+    <h3>${isEdit ? 'Edit Team' : 'Add Team'}</h3>
+    <div class="field"><label class="f-label">Team name</label><input id="tmName" value="${isEdit?esc(existing.name):''}" placeholder="e.g. Cape Town"></div>
+    <div class="field"><label class="f-label">Team leader</label><input id="tmLeader" value="${isEdit?esc(existing.leader):''}"></div>
+    <div class="field"><label class="f-label">Members (comma separated)</label><input id="tmMembers" value="${isEdit?esc((existing.members||[]).join(', ')):''}"></div>
+    ${!isEdit ? `<div class="field"><label class="f-label">Starting checklist</label>
+      <select id="tmStart"><option value="blank">Start blank</option><option value="copy">Copy an existing team's tool list</option><option value="generic">Use generic O&amp;M baseline</option></select></div>
+      <div class="field" id="tmCopyFrom" style="display:none"><label class="f-label">Copy from</label><select id="tmCopyTeam">${state.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></div>` : ''}
+    <div class="modal-actions"><button class="btn btn-outline" id="tmCancel">Cancel</button><button class="btn btn-primary" id="tmSave">${isEdit?'Save':'Add Team'}</button></div>
+  </div>`;
+  document.body.appendChild(backdrop);
+  const close = () => backdrop.remove();
+  $('#tmCancel', backdrop).addEventListener('click', close);
+  const startSel = $('#tmStart', backdrop);
+  if (startSel) startSel.addEventListener('change', () => { $('#tmCopyFrom', backdrop).style.display = startSel.value==='copy' ? 'block' : 'none'; });
+
+  $('#tmSave', backdrop).addEventListener('click', async () => {
+    const name = $('#tmName', backdrop).value.trim();
+    if (!name) return alert('Enter a team name.');
+    const leader = $('#tmLeader', backdrop).value.trim();
+    const members = $('#tmMembers', backdrop).value.split(',').map(s=>s.trim()).filter(Boolean);
+    if (isEdit) {
+      await updateTeam(existing.id, { name, leader, members });
+      close(); navigate('teams');
+      return;
+    }
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') + '-' + Math.random().toString(36).slice(2,6);
+    const team = await saveTeam({ slug, name, leader, members });
+    if (!team) return;
+    const mode = startSel.value;
+    if (mode === 'copy') {
+      const fromId = $('#tmCopyTeam', backdrop).value;
+      const src = await fetchTools(fromId);
+      for (let i=0;i<src.length;i++) await saveTool({ team_id: team.id, name: src[i].name, qty: src[i].qty, serial_number:'', sort_order:i });
+    } else if (mode === 'generic') {
+      const generic = OM_GENERIC_TOOLS;
+      for (let i=0;i<generic.length;i++) await saveTool({ team_id: team.id, name: generic[i].name, qty: generic[i].qty, serial_number:'', sort_order:i });
+    }
+    close(); navigate('teams');
+  });
+}
+
+const OM_GENERIC_TOOLS = [
+  {name:"Tool back pack kit, electrical", qty:"3"},{name:"Cantilever tool box, complete with tool set", qty:"1"},
+  {name:"Digital insulation tester (250/500/1000V)", qty:"1"},{name:"3-phase rotation tester", qty:"1"},
+  {name:"LAN / network cable tester", qty:"1"},{name:"Thermal imaging camera", qty:"1"},
+  {name:"Clamp meter, AC/DC 1000V", qty:"1"},{name:"Full body safety harness", qty:"3"},
+  {name:"Electrical insulating gloves, Class 0, size 10", qty:"2"},{name:"First aid box", qty:"1"},
+  {name:"Fire extinguisher, 9kg", qty:"1"},{name:"Extension ladder, aluminium, 6m", qty:"1"},
+  {name:"A-frame ladder, 8-step", qty:"1"},{name:"Cordless impact wrench, 18V", qty:"1"},
+  {name:"Cordless compact drill, 20V + case", qty:"1"},{name:"Tape measure, 8m", qty:"1"}
+];
+
+// ---- 12. Replacement Needs ----
+async function renderReplacements(main) {
+  const teams = state.teams.length ? state.teams : await fetchTeams();
+  state.teams = teams;
+  const outstanding = await fetchOutstandingReplacements();
+  updateReplBadge(outstanding.length);
+  const teamName = id => (teams.find(t=>t.id===id)||{}).name || '—';
+
+  main.innerHTML = `
+    <div class="page">
+      <div class="topbar"><div><h2>Replacement Needs</h2><div class="topbar-sub">${outstanding.length} outstanding item${outstanding.length===1?'':'s'} across all teams</div></div>
+        <button class="btn btn-dark" id="btnReplPdf">⬇ Export PDF</button></div>
+      <div class="tabs2"><button class="tab2 ${state.replMode==='team'?'active':''}" data-mode="team">By Team</button><button class="tab2 ${state.replMode==='tool'?'active':''}" data-mode="tool">By Tool</button></div>
+      <div id="replBody"></div>
+    </div>`;
+
+  $$('.tab2').forEach(b => b.addEventListener('click', () => { state.replMode = b.dataset.mode; renderReplacements(main); }));
+  $('#btnReplPdf').addEventListener('click', () => buildReplacementPdf(state.replMode, outstanding, teamName).save(`replacement-needs-${state.replMode}-${todayStr()}.pdf`));
+
+  const body = $('#replBody');
+  if (!outstanding.length) { body.innerHTML = `<div class="empty-state">Nothing outstanding — every flagged tool has been resolved. 🎉</div>`; return; }
+
+  if (state.replMode === 'team') {
+    const byTeam = {};
+    outstanding.forEach(o => { (byTeam[o.team_id] ||= []).push(o); });
+    body.innerHTML = Object.entries(byTeam).map(([teamId, rows]) => `
+      <h3 style="margin:18px 0 8px 0;font-size:14px;text-transform:uppercase;letter-spacing:.03em">${esc(teamName(teamId))} <span style="color:var(--grey);font-weight:400">(${rows.length})</span></h3>
+      <table class="data-table"><thead><tr><th>Tool</th><th>Status</th><th>Note</th><th>Since</th><th></th></tr></thead>
+      <tbody>${rows.map(r => replRow(r)).join('')}</tbody></table>`).join('');
+  } else {
+    const byTool = {};
+    outstanding.forEach(o => { (byTool[o.tool_name] ||= []).push(o); });
+    body.innerHTML = Object.entries(byTool).map(([toolName, rows]) => `
+      <h3 style="margin:18px 0 8px 0;font-size:14px;text-transform:uppercase;letter-spacing:.03em">${esc(toolName)} <span style="color:var(--grey);font-weight:400">(needed by ${rows.length} team${rows.length===1?'':'s'})</span></h3>
+      <table class="data-table"><thead><tr><th>Team</th><th>Status</th><th>Note</th><th>Since</th><th></th></tr></thead>
+      <tbody>${rows.map(r => `<tr><td>${esc(teamName(r.team_id))}</td><td style="text-transform:uppercase;font-weight:700;color:${r.status==='missing'?'var(--clay)':'var(--amber)'}">${r.status}</td><td>${esc(r.note||'')}</td><td>${fmtDate(r.created_at)}</td><td><button class="btn btn-outline btn-sm" data-replace="${r.id}">Mark as Replaced</button></td></tr>`).join('')}</tbody></table>`).join('');
+  }
+  $$('[data-replace]', body).forEach(b => b.addEventListener('click', async () => {
+    const by = prompt('Your name (for the record):', '') || 'Warehouse';
+    await markReplaced(b.dataset.replace, by);
+    renderReplacements(main);
+  }));
+}
+function replRow(r) {
+  return `<tr><td>${esc(r.tool_name)}</td><td style="text-transform:uppercase;font-weight:700;color:${r.status==='missing'?'var(--clay)':'var(--amber)'}">${r.status}</td><td>${esc(r.note||'')}</td><td>${fmtDate(r.created_at)}</td><td><button class="btn btn-outline btn-sm" data-replace="${r.id}">Mark as Replaced</button></td></tr>`;
+}
+function buildReplacementPdf(mode, outstanding, teamName) {
+  const doc = new jspdf.jsPDF();
+  pdfHeader(doc, 'REPLACEMENT NEEDS', `Grouped by ${mode === 'team' ? 'team' : 'tool'}  ·  ${outstanding.length} outstanding  ·  ${fmtDate(todayStr())}`);
+  const body = mode === 'team'
+    ? outstanding.map(r => [teamName(r.team_id), r.tool_name, r.status.toUpperCase(), r.note||'', fmtDate(r.created_at)])
+    : [...outstanding].sort((a,b)=>a.tool_name.localeCompare(b.tool_name)).map(r => [r.tool_name, teamName(r.team_id), r.status.toUpperCase(), r.note||'', fmtDate(r.created_at)]);
+  doc.autoTable({
+    startY: 36,
+    head: [mode==='team' ? ['Team','Tool','Status','Note','Since'] : ['Tool','Team','Status','Note','Since']],
+    body, styles:{fontSize:8,cellPadding:2}, headStyles:{fillColor:[63,63,64],textColor:255}
+  });
+  pdfFooter(doc);
+  return doc;
+}
+
+// ---- 13. Settings ----
+function renderSettings(main) {
+  main.innerHTML = `
+    <div class="page">
+      <div class="topbar"><h2>Settings</h2></div>
+      <div class="card" style="max-width:460px">
+        <div class="field"><label class="f-label">Default manager email (optional)</label>
+          <input type="email" id="setMgrEmail" placeholder="manager@rhinoenergy.co.za" value="${esc(localStorage.getItem(DEFAULT_MGR_EMAIL_KEY)||'')}">
+        </div>
+        <p style="font-size:11px;color:var(--grey);margin-top:-4px">Stored on this tablet only. Used as a note alongside the report when you tap Send to Manager — the native share sheet still lets you pick or change who it actually goes to each time.</p>
+        <button class="btn btn-primary" id="setSave">Save</button>
+      </div>
+      <div class="card" style="max-width:460px;margin-top:14px">
+        <div class="f-label">Connection</div>
+        <p style="font-size:12.5px" id="setConn">Checking…</p>
+      </div>
+    </div>`;
+  $('#setSave').addEventListener('click', () => { localStorage.setItem(DEFAULT_MGR_EMAIL_KEY, $('#setMgrEmail').value.trim()); alert('Saved.'); });
+  $('#setConn').textContent = IS_CONFIGURED ? 'Connected to Supabase.' : 'Not configured — see the banner on load.';
+}
+
+// ---- 14. Init ----
+function attachNav() {
+  $$('.nav-item').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.nav === 'check') { state.checkDraft = null; state._signoff = false; }
+    navigate(b.dataset.nav);
+  }));
+  $('#hamburgerBtn').addEventListener('click', () => $('#sidebar').classList.toggle('open'));
+}
+
+async function init() {
+  if (!IS_CONFIGURED) return;
+  attachNav();
+  const connEl = $('#connStatus');
+  try {
+    const { error } = await sb.from('teams').select('id').limit(1);
+    connEl.innerHTML = error ? '<span class="conn-dot bad"></span>Connection error' : '<span class="conn-dot ok"></span>Connected';
+  } catch (e) {
+    connEl.innerHTML = '<span class="conn-dot bad"></span>Offline';
+  }
+  navigate('dashboard');
+}
+init();
+
+if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(() => {}));
+}
+</script>
+</body>
+</html>

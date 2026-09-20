@@ -1,0 +1,9 @@
+{
+  "appId": "com.rhinoenergy.toolcheck",
+  "appName": "Rhino Tool Check",
+  "webDir": "shell/www",
+  "server": {
+    "url": "https://rhinoenergydavidwh.github.io/Tool-Check-Rhino-Energy/",
+    "androidScheme": "https"
+  }
+}

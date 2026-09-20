@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rhino Tool Check</title>
+<style>
+  body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
+       background:#3F3F40;color:#fff;font-family:-apple-system,Roboto,Arial,sans-serif;text-align:center;padding:24px}
+  .box{max-width:340px}
+  h1{color:#FDDD00;font-size:20px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px}
+  p{color:#D6D6D6;font-size:14px;line-height:1.5}
+  button{margin-top:18px;background:#FDDD00;color:#3F3F40;border:none;border-radius:8px;
+         padding:12px 22px;font-weight:700;font-size:14px}
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>Rhino Tool Check</h1>
+    <p>Can't reach the app right now — this tablet has no signal, or the site is briefly unavailable.
+       Check the Wi-Fi / data connection and try again.</p>
+    <button onclick="location.reload()">Retry</button>
+  </div>
+  <!--
+    This is only ever shown when the tablet can't load the live app at the
+    server.url set in capacitor.config.json. It is NOT the real app — see
+    docs/index.html (and the README) for that. Keep this page tiny; it ships
+    inside the APK itself and only changes when you rebuild.
+  -->
+</body>
+</html>

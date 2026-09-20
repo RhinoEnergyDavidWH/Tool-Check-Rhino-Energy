@@ -1,0 +1,80 @@
+name: Build Android APK
+
+# Whole-repo trigger, deliberately with no path filter: this repo holds
+# nothing but this app, so there's no risk of an unrelated change silently
+# producing "no build, no error". workflow_dispatch is kept so a build can
+# always be kicked off by hand from the Actions tab regardless.
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # No explicit android-actions/setup-android step: ubuntu-latest ships
+      # with a recent Android SDK + platform/build-tools preinstalled, which
+      # is enough for Capacitor 6. If a future Capacitor/AGP bump needs a
+      # newer platform than the runner has, add:
+      #   - uses: android-actions/setup-android@v3
+      #     with: { packages: 'platform-tools' }
+      # ('packages: platform-tools' only — the default also requests the
+      # long-deleted 'tools' package and fails the whole job.)
+
+      - name: Install dependencies (npm install, not npm ci — no lockfile is committed)
+        run: npm install
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Generate launcher icons & splash screen
+        run: npx capacitor-assets generate --android
+        continue-on-error: true   # a bug in icon generation must never block the build
+
+      - name: Sync web assets into the Android project
+        run: npx cap sync android
+
+      - name: Use a fixed debug signing key
+        # Without this, Gradle generates a random debug key on every CI run,
+        # so every new APK is signed differently and Android refuses to
+        # install it over the previous one ("App not installed") until the
+        # old copy is uninstalled first. debug.keystore here is committed on
+        # purpose — its password is the standard public "android", it has no
+        # security value, and it's what makes every build install as a clean
+        # update on top of the last one. Never do this with a release keystore.
+        run: |
+          mkdir -p ~/.android
+          cp debug.keystore ~/.android/debug.keystore
+
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Name the APK with the build number
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk "out/rhino-tool-check-${{ github.run_number }}.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: rhino-tool-check-apk
+          path: out/*.apk
+          retention-days: 90
