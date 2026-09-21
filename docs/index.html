@@ -806,9 +806,9 @@ async function sendToManager(pdfDataUri, filename) {
   if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
     try {
       const base64 = pdfDataUri.split(',')[1];
-      const { Filesystem, Directory } = window.Capacitor.Plugins;
-      await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Cache });
-      const uriResult = await Filesystem.getUri({ path: filename, directory: Directory.Cache });
+      const { Filesystem } = window.Capacitor.Plugins;
+      await Filesystem.writeFile({ path: filename, data: base64, directory: 'CACHE' });
+      const uriResult = await Filesystem.getUri({ path: filename, directory: 'CACHE' });
       await window.Capacitor.Plugins.Share.share({
         title: filename,
         text: defaultEmail ? `Tool check report — ${filename}` : undefined,
